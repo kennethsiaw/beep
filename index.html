@@ -464,14 +464,20 @@
     g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
     o.start(start); o.stop(start+dur+0.02);
   }
-  function playBeep(success){
-    if(!soundOn()) return;
-    initAudio(); if(!audioCtx) return;
-    if(audioCtx.state==="suspended"){ try{audioCtx.resume();}catch(e){} }
+  function emitBeep(success){
     var t=audioCtx.currentTime;
     if(success){ tone(1568,t,0.08); tone(2093,t+0.09,0.12); }
     else { tone(2000,t,0.09); }
   }
+  function playBeep(success){
+    if(!soundOn()) return;
+    initAudio(); if(!audioCtx) return;
+    // iOS can leave the context "suspended"/"interrupted" (e.g. after the camera
+    // grabs the audio session). Resume whenever it isn't running, then beep.
+    if(audioCtx.state==="running"){ emitBeep(success); }
+    else { try{ audioCtx.resume().then(function(){ emitBeep(success); }).catch(function(){}); }catch(e){} }
+  }
+  function wakeAudio(){ initAudio(); if(audioCtx && audioCtx.state!=="running"){ try{ audioCtx.resume(); }catch(e){} } }
 
   // ---------- Barcode rendering ----------
   function renderBarcode(container, type, value, scale){
@@ -743,8 +749,9 @@
   function startScanner(){
     if(typeof ZXing==="undefined"){ alert("Scanner couldn't load (no connection?). You can enter the card manually."); return; }
     openSheet("scanner");
+    wakeAudio();
     $("scanStatus").textContent="Point your camera at the barcode…";
-    getReader().decodeFromConstraints({ video:{ facingMode:{ ideal:"environment" } } }, $("scanVideo"),
+    getReader().decodeFromConstraints({ video:{ facingMode:{ ideal:"environment" }, width:{ ideal:1920 }, height:{ ideal:1080 } } }, $("scanVideo"),
       function(result){ if(result) onDetected(result.getText(), zxingToBcid(result.getBarcodeFormat())); }
     ).then(function(controls){ scanControls=controls; })
      .catch(function(){ $("scanStatus").textContent="Can't access the camera. Allow camera access, or tap “Use a photo”."; });
