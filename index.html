@@ -102,7 +102,7 @@
     transition:transform .18s cubic-bezier(.2,.7,.3,1),margin .18s ease,height .18s ease}
   .wallet.reordering .wcard:first-child{margin-top:0}
   .wcard.rz-drag{height:210px!important;transition:none!important;z-index:60;
-    box-shadow:0 22px 46px rgba(20,20,55,.5);opacity:.99}
+    box-shadow:0 22px 46px rgba(20,20,55,.5);opacity:.99;touch-action:none}
   .wcard-ph{width:100%;height:82px;margin-top:12px;border-radius:22px;
     border:2px dashed var(--line-strong);background:rgba(125,140,190,.08)}
   .wallet.reordering .wcard-ph:first-child{margin-top:0}
@@ -433,7 +433,7 @@
 <script>
 (function(){
   "use strict";
-  var BUILD="2026-07-04.5";
+  var BUILD="2026-07-04.6";
   var KEY="wallet.cards.v1";
   var COLORS=["#4f8cff","#7c5cff","#5b6cf0","#f43f5e","#10b981","#f59e0b","#ff7ac2","#06b6d4","#8b5cf6","#64748b"];
   var TYPE_LABELS={code128:"Code 128",qrcode:"QR Code",ean13:"EAN-13",ean8:"EAN-8",upca:"UPC-A",
@@ -700,6 +700,10 @@
     renderList();                                 // restore proper wallet stacking
     setTimeout(function(){ rz.suppressClick=false; }, 60); // swallow the trailing click
   }
+  // iOS commits a touch to scrolling the instant it moves, which fires
+  // pointercancel and drops the drag (the card "minimizes"). While a card is
+  // picked up, block page scrolling so the drag keeps following the finger.
+  document.addEventListener("touchmove", function(e){ if(rz.active && e.cancelable) e.preventDefault(); }, {passive:false});
 
   // ---------- Detail page (expand-in-place hero animation) ----------
   var detailFrom=null;
