@@ -90,10 +90,19 @@
   .wallet{position:relative;padding:2px 0 10px}
   .wcard{position:relative;isolation:isolate;display:flex;align-items:center;gap:14px;width:100%;min-height:80px;
     margin-top:-20px;border-radius:20px;padding:15px 18px;overflow:hidden;cursor:pointer;text-align:left;color:#fff;
-    box-shadow:0 -2px 8px rgba(20,20,55,.10), 0 9px 18px rgba(20,20,55,.18);transition:transform .16s ease}
+    box-shadow:0 -2px 8px rgba(20,20,55,.10), 0 9px 18px rgba(20,20,55,.18);transition:transform .16s ease;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:pan-y}
   .wcard:first-child{margin-top:0}
   .wallet .wcard:last-child{min-height:176px;align-items:flex-start;padding-top:16px}
   .wcard:active{transform:scale(.985)}
+  /* Long-press drag-to-reorder: flatten the stack into an even list while dragging */
+  .wallet.reordering .wcard{margin-top:12px;min-height:80px;align-items:center;padding-top:15px;
+    transition:transform .18s cubic-bezier(.2,.7,.3,1),margin .18s ease}
+  .wallet.reordering .wcard:first-child{margin-top:0}
+  .wcard.rz-drag{transition:none!important;z-index:60;box-shadow:0 18px 40px rgba(20,20,55,.42);opacity:.98}
+  .wcard-ph{width:100%;min-height:80px;margin-top:12px;border-radius:20px;
+    border:2px dashed var(--line-strong);background:rgba(125,140,190,.08)}
+  .wallet.reordering .wcard-ph:first-child{margin-top:0}
   .wcard::after{content:"";position:absolute;inset:0;border-radius:20px;
     background:radial-gradient(130% 130% at 92% 0%, rgba(255,255,255,.24), transparent 55%);pointer-events:none}
   .wc-head{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
@@ -419,7 +428,7 @@
 <script>
 (function(){
   "use strict";
-  var BUILD="2026-07-04.3";
+  var BUILD="2026-07-04.4";
   var KEY="wallet.cards.v1";
   var COLORS=["#4f8cff","#7c5cff","#5b6cf0","#f43f5e","#10b981","#f59e0b","#ff7ac2","#06b6d4","#8b5cf6","#64748b"];
   var TYPE_LABELS={code128:"Code 128",qrcode:"QR Code",ean13:"EAN-13",ean8:"EAN-8",upca:"UPC-A",
@@ -601,9 +610,89 @@
       el.style.color=idealText(c.color);
       el.innerHTML=cardHeadHTML(c,d,false);
       el.setAttribute("data-id", c.id);
-      el.onclick=function(){ openDetail(c, el); };
+      el.onclick=function(){ if(rz.suppressClick) return; openDetail(c, el); };
+      el.addEventListener("pointerdown", cardPointerDown);
       grid.appendChild(el);
     });
+  }
+
+  // ---------- Long-press drag to reorder ----------
+  // Reordering only makes sense on the full, unfiltered stack (otherwise the
+  // on-screen order isn't the array order). Hold a card ~380ms to pick it up.
+  var rz={active:false,el:null,ph:null,pointer:0,offsetY:0,timer:null,sx:0,sy:0,suppressClick:false};
+  function canReorder(){ return activeCat==="All" && !$("search").value.trim() && cards.length>1; }
+  function cardPointerDown(e){
+    if(e.pointerType==="mouse" && e.button!==0) return;
+    if(rz.active || !canReorder()) return;
+    var el=e.currentTarget;
+    rz.sx=e.clientX; rz.sy=e.clientY;
+    rz.timer=setTimeout(function(){ startReorder(el, e.pointerId, e.clientY); }, 380);
+    el.__rzMove=function(ev){
+      if(rz.active) return;
+      if(Math.abs(ev.clientY-rz.sy)>8 || Math.abs(ev.clientX-rz.sx)>8) clearPress(el); // moved → it's a scroll/tap
+    };
+    el.__rzUp=function(){ clearPress(el); };
+    el.addEventListener("pointermove", el.__rzMove);
+    el.addEventListener("pointerup", el.__rzUp);
+    el.addEventListener("pointercancel", el.__rzUp);
+  }
+  function clearPress(el){
+    if(rz.timer){ clearTimeout(rz.timer); rz.timer=null; }
+    if(el.__rzMove){ el.removeEventListener("pointermove", el.__rzMove); el.__rzMove=null; }
+    if(el.__rzUp){ el.removeEventListener("pointerup", el.__rzUp); el.removeEventListener("pointercancel", el.__rzUp); el.__rzUp=null; }
+  }
+  function startReorder(el, pointerId, clientY){
+    clearPress(el);
+    rz.active=true; rz.el=el; rz.pointer=pointerId; rz.suppressClick=true;
+    try{ el.setPointerCapture(pointerId); }catch(e){}
+    if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(e){} }
+    var grid=$("grid");
+    grid.classList.add("reordering");            // flatten the stack for clean geometry
+    var r=el.getBoundingClientRect();            // measured after flatten
+    rz.offsetY = clientY - r.top;
+    var ph=document.createElement("div"); ph.className="wcard-ph"; rz.ph=ph;
+    el.parentNode.insertBefore(ph, el);          // placeholder holds the slot
+    el.classList.add("rz-drag");
+    el.style.position="fixed"; el.style.margin="0";
+    el.style.width=r.width+"px"; el.style.left=r.left+"px"; el.style.top=r.top+"px";
+    document.documentElement.style.overflow="hidden"; document.body.style.overflow="hidden";
+    window.addEventListener("pointermove", reorderMove, {passive:false});
+    window.addEventListener("pointerup", reorderEnd);
+    window.addEventListener("pointercancel", reorderEnd);
+  }
+  function reorderMove(e){
+    if(!rz.active) return;
+    if(e.cancelable) e.preventDefault();
+    var el=rz.el, grid=$("grid"), ph=rz.ph;
+    el.style.top=(e.clientY - rz.offsetY)+"px";
+    var sibs=Array.prototype.slice.call(grid.children).filter(function(n){ return n.classList.contains("wcard") && n!==el; });
+    var target=null;
+    for(var i=0;i<sibs.length;i++){
+      var sr=sibs[i].getBoundingClientRect();
+      if(e.clientY < sr.top + sr.height/2){ target=sibs[i]; break; }
+    }
+    if(target){ if(ph.nextSibling!==target && ph!==target) grid.insertBefore(ph, target); }
+    else if(grid.lastElementChild!==ph){ grid.appendChild(ph); }
+  }
+  function reorderEnd(){
+    if(!rz.active) return;
+    rz.active=false;
+    window.removeEventListener("pointermove", reorderMove);
+    window.removeEventListener("pointerup", reorderEnd);
+    window.removeEventListener("pointercancel", reorderEnd);
+    var el=rz.el, grid=$("grid"), ph=rz.ph;
+    try{ el.releasePointerCapture(rz.pointer); }catch(e){}
+    grid.insertBefore(el, ph); grid.removeChild(ph); rz.ph=null;
+    el.classList.remove("rz-drag");
+    el.style.position=""; el.style.margin=""; el.style.width=""; el.style.left=""; el.style.top=""; el.style.transform=""; el.style.zIndex="";
+    grid.classList.remove("reordering");
+    document.documentElement.style.overflow=""; document.body.style.overflow="";
+    // commit the new order to the data model
+    var ids=Array.prototype.slice.call(grid.querySelectorAll(".wcard")).map(function(n){ return n.getAttribute("data-id"); });
+    cards.sort(function(a,b){ return ids.indexOf(String(a.id)) - ids.indexOf(String(b.id)); });
+    persist();
+    renderList();                                 // restore proper wallet stacking
+    setTimeout(function(){ rz.suppressClick=false; }, 60); // swallow the trailing click
   }
 
   // ---------- Detail page (expand-in-place hero animation) ----------
