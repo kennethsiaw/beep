@@ -163,8 +163,14 @@
 
   /* ---------- Detail page (slides in) ---------- */
   .detail{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;
-    transform:translateX(100%);visibility:hidden;transition:transform .28s cubic-bezier(.4,0,.2,1),visibility .28s}
-  .detail.open{transform:none;visibility:visible}
+    visibility:hidden}
+  .detail.open{visibility:visible}
+  /* expand-in-place: hero card morphs from the tapped card; the rest fades up */
+  #dtCard{will-change:transform;transform-origin:top left}
+  .detail .dt-top,.detail .bc-panel,.detail .dt-rows,.detail .dt-actions{
+    transition:opacity .3s ease,transform .3s ease}
+  .detail.entering .dt-top,.detail.entering .bc-panel,.detail.entering .dt-rows,.detail.entering .dt-actions{
+    opacity:0;transform:translateY(16px)}
   .dt-top{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:10px;
     padding:calc(var(--safe-top) + 10px) 16px 10px;background:linear-gradient(180deg,var(--bg) 80%,transparent);z-index:2}
   .pill-btn{display:flex;align-items:center;gap:6px;padding:10px 16px;border-radius:999px;background:var(--surface);
@@ -593,13 +599,15 @@
       el.style.background=cardBg(c);
       el.style.color=idealText(c.color);
       el.innerHTML=cardHeadHTML(c,d,false);
-      el.onclick=function(){ openDetail(c); };
+      el.setAttribute("data-id", c.id);
+      el.onclick=function(){ openDetail(c, el); };
       grid.appendChild(el);
     });
   }
 
-  // ---------- Detail page ----------
-  function openDetail(c){
+  // ---------- Detail page (expand-in-place hero animation) ----------
+  var detailFrom=null;
+  function openDetail(c, fromEl){
     currentId=c.id;
     var d=daysLeft(c), ink=idealText(c.color);
     var card=$("dtCard");
@@ -609,11 +617,49 @@
     $("dt-cat").textContent = c.cat||"Other";
     $("dt-type").textContent = TYPE_LABELS[c.type]||c.type;
     $("dt-exp").innerHTML = c.exp ? (fmtDate(c.exp)+(d!==null?' · <span style="color:var(--'+(d<0?"danger":d<=30?"warn":"ok")+')">'+(d<0?"Expired":expLabel(d))+'</span>':'')) : "—";
-    $("detail").classList.add("open"); $("detail").setAttribute("aria-hidden","false");
+    var detail=$("detail");
+    detail.classList.add("open"); detail.setAttribute("aria-hidden","false");
+    var scroll=detail.querySelector(".dt-scroll"); if(scroll) scroll.scrollTop=0;
+    // FLIP: start the hero card overlapping the tapped card, then grow to full size
+    var hero=$("dtCard");
+    hero.style.transition="none"; hero.style.transform="none";
+    var to=hero.getBoundingClientRect();
+    var fr=fromEl && fromEl.getBoundingClientRect();
+    if(fr && fr.width && to.width){
+      detailFrom={left:fr.left,top:fr.top,width:fr.width,height:fr.height};
+      hero.style.transform="translate("+(fr.left-to.left)+"px,"+(fr.top-to.top)+"px) scale("+(fr.width/to.width)+","+(fr.height/to.height)+")";
+      detail.classList.add("entering");
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){
+        hero.style.transition="transform .44s cubic-bezier(.2,.85,.25,1)";
+        hero.style.transform="none";
+        detail.classList.remove("entering");
+      }); });
+      setTimeout(function(){ hero.style.transition=""; hero.style.transform=""; }, 520);
+    } else { detailFrom=null; detail.classList.remove("entering"); }
     playBeep(false);
     requestWake();
   }
-  function closeDetail(){ $("detail").classList.remove("open"); $("detail").setAttribute("aria-hidden","true"); if(!$("showView").classList.contains("open")) releaseWake(); }
+  function closeDetail(){
+    var detail=$("detail"), hero=$("dtCard");
+    var src=currentId && document.querySelector('#grid .wcard[data-id="'+currentId+'"]');
+    var target = src ? src.getBoundingClientRect() : detailFrom;
+    var finish=function(){
+      detail.classList.remove("open"); detail.classList.remove("entering");
+      detail.setAttribute("aria-hidden","true");
+      hero.style.transition=""; hero.style.transform="";
+      if(!$("showView").classList.contains("open")) releaseWake();
+    };
+    if(target && target.width){
+      hero.style.transition="none"; hero.style.transform="none";
+      var to=hero.getBoundingClientRect();
+      requestAnimationFrame(function(){
+        hero.style.transition="transform .3s cubic-bezier(.4,0,.2,1)";
+        hero.style.transform="translate("+(target.left-to.left)+"px,"+(target.top-to.top)+"px) scale("+(target.width/to.width)+","+(target.height/to.height)+")";
+        detail.classList.add("entering");
+      });
+      setTimeout(finish, 310);
+    } else { finish(); }
+  }
 
   // ---------- Fullscreen show ----------
   function openFull(c){
