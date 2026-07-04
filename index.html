@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Beep">
+<meta name="theme-color" content="#F4F5FB">
+<title>Beep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Design tokens: light (default) ---------- */
+  :root{
+    --bg:#F4F5FB; --bg-2:#EAECF7; --surface:#FFFFFF; --surface-2:#F1F3FB;
+    --text:#1E1B4B; --muted:#5B6478; --line:#E3E6F3; --line-strong:#D5DAEC;
+    --accent:#4F8CFF; --accent-2:#7C5CFF; --accent-ink:#5B4BE0;
+    --danger:#F43F5E; --warn:#F59E0B; --ok:#10B981;
+    --shadow:rgba(70,80,150,.18); --shadow-soft:rgba(70,80,150,.10);
+    --sheen:rgba(255,255,255,.65);
+    --radius:24px; --radius-sm:16px;
+    --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+    color-scheme:light;
+  }
+  /* ---------- Dark: auto (system) + forced ---------- */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0E1220; --bg-2:#0A0D18; --surface:#171D2E; --surface-2:#212940;
+      --text:#EDF1FA; --muted:#97A2BC; --line:rgba(120,140,190,.16); --line-strong:rgba(120,140,190,.28);
+      --accent:#5C97FF; --accent-2:#8A6DFF; --accent-ink:#AEBCFF;
+      --danger:#FF6376; --warn:#FDB44B; --ok:#3DDC97;
+      --shadow:rgba(0,0,0,.55); --shadow-soft:rgba(0,0,0,.35);
+      --sheen:rgba(255,255,255,.10);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0E1220; --bg-2:#0A0D18; --surface:#171D2E; --surface-2:#212940;
+    --text:#EDF1FA; --muted:#97A2BC; --line:rgba(120,140,190,.16); --line-strong:rgba(120,140,190,.28);
+    --accent:#5C97FF; --accent-2:#8A6DFF; --accent-ink:#AEBCFF;
+    --danger:#FF6376; --warn:#FDB44B; --ok:#3DDC97;
+    --shadow:rgba(0,0,0,.55); --shadow-soft:rgba(0,0,0,.35);
+    --sheen:rgba(255,255,255,.10);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Nunito',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  body{min-height:100vh;padding:calc(var(--safe-top) + 8px) 0 calc(var(--safe-bottom) + 96px);
+    transition:background .3s}
+  h1,h2,h3{margin:0}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select{font-family:inherit;font-size:16px}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+  /* ---------- Header ---------- */
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--bg) 78%,transparent);
+    padding:6px 18px 12px}
+  .titlebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .brand{font-family:'Fredoka',sans-serif;font-weight:700;font-size:30px;letter-spacing:.3px;
+    display:flex;align-items:center;gap:9px;
+    background:linear-gradient(120deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand-ic{width:30px;height:30px;flex:0 0 auto}
+  .icon-btn{width:44px;height:44px;border-radius:14px;background:var(--surface);display:grid;place-items:center;
+    color:var(--text);box-shadow:0 3px 8px var(--shadow-soft);border:1px solid var(--line)}
+  .icon-btn svg{width:20px;height:20px}
+  .search{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:13px 16px;color:var(--text);outline:none;box-shadow:inset 0 1px 2px var(--shadow-soft)}
+  .search::placeholder{color:var(--muted)}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:14px 2px 2px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{white-space:nowrap;padding:9px 16px;border-radius:999px;background:var(--surface);
+    color:var(--muted);font-size:13.5px;font-weight:700;border:1px solid var(--line);box-shadow:0 2px 6px var(--shadow-soft)}
+  .chip.active{background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent}
+
+  main{padding:0 18px}
+  .reminder{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);
+    border-left:4px solid var(--warn);border-radius:16px;padding:13px 15px;margin-bottom:16px;font-size:14px;
+    color:var(--text);box-shadow:0 4px 12px var(--shadow-soft)}
+  .reminder b{font-weight:800}
+  .reminder svg{width:20px;height:20px;color:var(--warn);flex:0 0 auto}
+
+  /* ---------- Apple-Wallet-style stack ---------- */
+  .wallet{position:relative;padding:2px 0 10px}
+  .wcard{position:relative;isolation:isolate;display:flex;align-items:center;gap:14px;width:100%;min-height:80px;
+    margin-top:-20px;border-radius:20px;padding:15px 18px;overflow:hidden;cursor:pointer;text-align:left;color:#fff;
+    box-shadow:0 -2px 8px rgba(20,20,55,.10), 0 9px 18px rgba(20,20,55,.18);transition:transform .16s ease}
+  .wcard:first-child{margin-top:0}
+  .wallet .wcard:last-child{min-height:176px;align-items:flex-start;padding-top:16px}
+  .wcard:active{transform:scale(.985)}
+  .wcard::after{content:"";position:absolute;inset:0;border-radius:20px;
+    background:radial-gradient(130% 130% at 92% 0%, rgba(255,255,255,.24), transparent 55%);pointer-events:none}
+  .wc-head{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+  .wc-logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;position:relative;z-index:1;
+    font-family:'Fredoka',sans-serif;font-weight:600;font-size:19px;overflow:hidden;flex:0 0 auto}
+  .wc-logo img{width:100%;height:100%;object-fit:cover}
+  .wc-name{font-family:'Fredoka',sans-serif;font-weight:600;font-size:20px;line-height:1.12;position:relative;z-index:1;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .wc-tags{display:flex;gap:7px;margin-top:14px;position:relative;z-index:1}
+  .tag{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.20);
+    color:#fff;text-transform:uppercase;letter-spacing:.5px}
+  .tag.warn{background:var(--warn);color:#3a2600}
+  .tag.soon{background:#ff8a3d;color:#331500}
+  .tag.dead{background:var(--danger);color:#fff}
+
+  .empty{text-align:center;color:var(--muted);padding:70px 24px}
+  .empty svg{width:56px;height:56px;color:var(--accent);opacity:.8;margin-bottom:12px}
+  .nomatch{text-align:center;color:var(--muted);padding:34px}
+
+  /* ---------- FAB ---------- */
+  .fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-bottom) + 22px);
+    z-index:30;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;
+    padding:15px 26px;border-radius:999px;font-size:16px;font-weight:800;display:flex;align-items:center;
+    gap:9px;box-shadow:0 12px 26px rgba(92,120,255,.42);transition:transform .15s}
+  .fab:active{transform:translateX(-50%) scale(.95)}
+  .fab svg{width:20px;height:20px}
+
+  /* ---------- Sheets / overlays ---------- */
+  .overlay{position:fixed;inset:0;z-index:76;background:rgba(15,18,35,.5);backdrop-filter:blur(4px);
+    display:none;align-items:flex-end;justify-content:center}
+  .overlay.open{display:flex}
+  .sheet{background:var(--surface);width:100%;max-width:560px;max-height:92vh;overflow:auto;
+    border-radius:26px 26px 0 0;padding:20px 20px calc(var(--safe-bottom) + 24px);
+    border-top:1px solid var(--line);box-shadow:0 -10px 40px rgba(0,0,0,.25);animation:up .24s ease}
+  @keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet h2{font-family:'Fredoka',sans-serif;font-size:21px;font-weight:600;margin-bottom:18px;
+    display:flex;justify-content:space-between;align-items:center}
+  .field{margin-bottom:15px}
+  .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px;font-weight:700}
+  .field input,.field select{width:100%;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:14px;padding:13px;color:var(--text);outline:none}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap}
+  .sw{width:36px;height:36px;border-radius:12px;border:3px solid transparent;box-shadow:0 2px 6px var(--shadow-soft)}
+  .sw.sel{border-color:var(--text)}
+  .logo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .logo-prev{width:54px;height:54px;border-radius:14px;background:var(--surface-2);display:grid;
+    place-items:center;overflow:hidden;font-weight:800;color:var(--muted);font-family:'Fredoka',sans-serif}
+  .logo-prev img{width:100%;height:100%;object-fit:cover}
+  .btn{display:block;width:100%;text-align:center;padding:15px;border-radius:16px;font-weight:800;font-size:16px;
+    transition:transform .14s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;
+    box-shadow:0 8px 20px rgba(92,120,255,.35)}
+  .btn-ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}
+  .btn-danger{background:transparent;color:var(--danger);font-weight:700}
+  .preview-box{background:#fff;border-radius:14px;padding:12px;margin-top:6px;min-height:74px;
+    display:grid;place-items:center}
+  .preview-box canvas{max-width:100%;height:auto}
+  .preview-err{color:var(--danger);font-size:13px;padding:14px;text-align:center}
+  .small{color:var(--muted);font-size:12.5px;line-height:1.5}
+  .menu-list button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:15px 4px;
+    font-size:16px;font-weight:600;border-bottom:1px solid var(--line)}
+  .menu-list button:last-child{border-bottom:none}
+  .menu-list button svg{width:22px;height:22px;color:var(--accent-ink);flex:0 0 auto}
+  input[type=file]{display:none}
+
+  /* ---------- Detail page (slides in) ---------- */
+  .detail{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;
+    transform:translateX(100%);visibility:hidden;transition:transform .28s cubic-bezier(.4,0,.2,1),visibility .28s}
+  .detail.open{transform:none;visibility:visible}
+  .dt-top{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:calc(var(--safe-top) + 10px) 16px 10px;background:linear-gradient(180deg,var(--bg) 80%,transparent);z-index:2}
+  .pill-btn{display:flex;align-items:center;gap:6px;padding:10px 16px;border-radius:999px;background:var(--surface);
+    border:1px solid var(--line);font-weight:700;font-size:15px;color:var(--text);box-shadow:0 3px 8px var(--shadow-soft)}
+  .pill-btn svg{width:18px;height:18px}
+  .dt-scroll{flex:1;overflow:auto;padding:6px 18px calc(var(--safe-bottom) + 30px)}
+  .dt-card{display:block;min-height:190px;height:auto;cursor:default;margin-top:0}
+  .dt-card:active{transform:none}
+  .bc-panel{background:#fff;border-radius:20px;padding:22px 16px 16px;margin-top:20px;text-align:center;
+    box-shadow:0 8px 22px var(--shadow-soft);cursor:pointer}
+  .bc-panel canvas{max-width:100%;height:auto}
+  .bc-num{margin-top:14px;font-size:18px;letter-spacing:2px;font-weight:700;color:#111;word-break:break-all;
+    font-family:'Nunito',monospace}
+  .bc-tap{margin-top:8px;font-size:12px;color:#8a8a99;font-weight:700}
+  .dt-rows{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    overflow:hidden;box-shadow:0 4px 12px var(--shadow-soft)}
+  .dt-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px 16px;
+    border-bottom:1px solid var(--line);font-size:15px}
+  .dt-row:last-child{border-bottom:none}
+  .dt-row span{color:var(--muted);font-weight:600}
+  .dt-row b{font-weight:800;text-align:right}
+  .dt-actions{margin-top:22px;display:flex;flex-direction:column;gap:12px}
+
+  /* ---------- Fullscreen barcode ---------- */
+  .show{position:fixed;inset:0;z-index:80;background:#fff;color:#111;display:none;
+    flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+  .show.open{display:flex}
+  .close-x{position:absolute;top:calc(var(--safe-top) + 14px);right:18px;font-size:24px;
+    width:46px;height:46px;border-radius:50%;display:grid;place-items:center}
+  .show .close-x{color:#333;background:rgba(0,0,0,.06)}
+  .show .sh-name{font-family:'Fredoka',sans-serif;font-size:24px;font-weight:600;margin-bottom:4px;color:#111}
+  .show .sh-cat{color:#777;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:28px;font-weight:700}
+  .show .bc{background:#fff;padding:8px;border-radius:8px}
+  .show .bc canvas{max-width:92vw;height:auto}
+  .show .sh-val{margin-top:22px;font-size:20px;letter-spacing:2px;font-weight:700;color:#111;word-break:break-all}
+  .show .sh-hint{margin-top:28px;color:#999;font-size:12px;font-weight:600}
+
+  /* ---------- Scanner ---------- */
+  .scanner{position:fixed;inset:0;z-index:90;background:#000;display:none;flex-direction:column}
+  .scanner.open{display:flex}
+  .scanner video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .scan-ui{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .scan-frame{width:80%;max-width:340px;aspect-ratio:1.5/1;border:3px solid #fff;border-radius:18px;
+    box-shadow:0 0 0 2000px rgba(0,0,0,.5)}
+  .scan-hint{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.65);
+    padding:11px 17px;border-radius:14px;font-size:14px;font-weight:600;text-align:center;max-width:82%;z-index:2}
+  .scan-photo-btn{position:absolute;bottom:calc(var(--safe-bottom) + 26px);left:50%;transform:translateX(-50%);
+    width:auto;padding:13px 22px;z-index:2}
+  .scanner .close-x{color:#fff;background:rgba(255,255,255,.15)}
+</style>
+</head>
+<body>
+<header>
+  <div class="titlebar">
+    <div class="brand">
+      <svg class="brand-ic" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <rect width="48" height="48" rx="13" fill="url(#bg)"/>
+        <g fill="#fff"><rect x="12" y="15" width="2.4" height="18" rx="1"/><rect x="16" y="15" width="1.4" height="18" rx=".7"/>
+        <rect x="19" y="15" width="3" height="18" rx="1"/><rect x="24" y="15" width="1.6" height="18" rx=".8"/></g>
+        <g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+        <path d="M31 20a6 6 0 0 1 0 8"/><path d="M35 17a11 11 0 0 1 0 14"/></g>
+        <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop stop-color="#4F8CFF"/><stop offset="1" stop-color="#7C5CFF"/></linearGradient></defs>
+      </svg>Beep
+    </div>
+    <button class="icon-btn" id="menuBtn" title="Menu" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+    </button>
+  </div>
+  <input class="search" id="search" placeholder="Search cards…" autocomplete="off" aria-label="Search cards">
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <div id="reminders"></div>
+  <div class="wallet" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20" stroke-width="2"/></svg>
+    <div style="font-weight:800;font-size:17px">No cards yet</div>
+    <div class="small" style="margin-top:6px">Tap <b>Add card</b> to store your first one.</div>
+  </div>
+</main>
+
+<button class="fab" id="addFab" aria-label="Add card">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  Add card
+</button>
+
+<!-- Detail page -->
+<div class="detail" id="detail" aria-hidden="true">
+  <div class="dt-top">
+    <button class="pill-btn" id="dtBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>Back</button>
+    <button class="pill-btn" id="dtEdit">Edit</button>
+  </div>
+  <div class="dt-scroll">
+    <div class="wcard dt-card" id="dtCard">
+      <div class="wc-head"><div class="wc-logo" id="dt-logo"></div><div class="wc-name" id="dt-name"></div></div>
+      <div class="wc-tags" id="dt-tags"></div>
+    </div>
+    <div class="bc-panel" id="bcPanel">
+      <div class="bc" id="dt-bc"></div>
+      <div class="bc-tap">Tap to enlarge &amp; brighten</div>
+    </div>
+    <div class="dt-rows">
+      <div class="dt-row"><span>Category</span><b id="dt-cat">—</b></div>
+      <div class="dt-row"><span>Barcode</span><b id="dt-type">—</b></div>
+      <div class="dt-row"><span>Expires</span><b id="dt-exp">—</b></div>
+    </div>
+    <div class="dt-actions">
+      <button class="btn btn-primary" id="dtShow">Show fullscreen</button>
+      <button class="btn btn-danger" id="dtDelete">Delete card</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit sheet -->
+<div class="overlay" id="editOverlay">
+  <div class="sheet">
+    <h2><span id="editTitle">Add card</span><button class="icon-btn" data-close="editOverlay" aria-label="Close">✕</button></h2>
+    <div class="field">
+      <label for="f-name">Card name</label>
+      <input id="f-name" placeholder="e.g. Guardian, Gym, Cinema…">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="f-type">Barcode type</label>
+        <select id="f-type">
+          <option value="code128">Code 128 (most cards)</option>
+          <option value="qrcode">QR Code</option>
+          <option value="ean13">EAN-13</option>
+          <option value="ean8">EAN-8</option>
+          <option value="upca">UPC-A</option>
+          <option value="code39">Code 39</option>
+          <option value="pdf417">PDF417 (tickets)</option>
+          <option value="azteccode">Aztec (transit)</option>
+          <option value="datamatrix">Data Matrix</option>
+          <option value="code93">Code 93</option>
+          <option value="upce">UPC-E</option>
+          <option value="interleaved2of5">ITF</option>
+          <option value="rationalizedCodabar">Codabar</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-cat">Category</label>
+        <select id="f-cat">
+          <option value="Loyalty">Loyalty</option>
+          <option value="Membership">Membership</option>
+          <option value="Ticket">Ticket</option>
+          <option value="Payment">Payment</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-value">Card number / code</label>
+      <input id="f-value" placeholder="The number under the barcode" autocomplete="off" autocapitalize="off">
+    </div>
+    <div class="field">
+      <label>Live preview</label>
+      <div class="preview-box" id="preview"><span class="small" style="color:#999">Enter a code…</span></div>
+    </div>
+    <div class="field">
+      <label>Colour</label>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="field">
+      <label>Brand logo (optional)</label>
+      <div class="logo-row">
+        <div class="logo-prev" id="logoPrev">?</div>
+        <button class="btn btn-ghost" style="width:auto;padding:11px 18px" id="logoPick">Choose image</button>
+        <button class="btn btn-danger" style="width:auto" id="logoClear">Remove</button>
+        <input type="file" id="logoFile" accept="image/*">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="f-exp">Expiry date (optional)</label>
+        <input type="date" id="f-exp">
+      </div>
+      <div class="field">
+        <label for="f-remind">Remind me before</label>
+        <select id="f-remind">
+          <option value="0">No reminder</option>
+          <option value="7">7 days</option>
+          <option value="14">14 days</option>
+          <option value="30" selected>30 days</option>
+          <option value="60">60 days</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="saveBtn" style="margin-top:6px">Save card</button>
+    <button class="btn btn-danger" id="deleteBtn" style="margin-top:10px;display:none">Delete card</button>
+  </div>
+</div>
+
+<!-- Menu sheet -->
+<div class="overlay" id="menuOverlay">
+  <div class="sheet">
+    <h2>Menu<button class="icon-btn" data-close="menuOverlay" aria-label="Close">✕</button></h2>
+    <div class="menu-list">
+      <button id="themeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor"/></svg><span id="themeLbl">Appearance: Auto</span></button>
+      <button id="soundBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg><span id="soundLbl">Beep sound: On</span></button>
+      <button id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Export backup (.json)</button>
+      <button id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Import backup</button>
+      <button id="aboutBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>About &amp; tips</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json">
+    <p class="small" style="margin-top:16px">All cards are stored only on this device. Export regularly so you never lose them.</p>
+  </div>
+</div>
+
+<!-- Add-card chooser -->
+<div class="overlay" id="chooseOverlay">
+  <div class="sheet">
+    <h2>Add a card<button class="icon-btn" data-close="chooseOverlay" aria-label="Close">✕</button></h2>
+    <div class="menu-list">
+      <button id="optScan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>Scan barcode with camera</button>
+      <button id="optPhoto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-9 8"/></svg>Upload a photo of the card</button>
+      <button id="optManual"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Enter details manually</button>
+    </div>
+    <p class="small" style="margin-top:14px">Scanning fills in the number <b>and</b> detects the barcode type automatically — you just add a name.</p>
+    <input type="file" id="scanPhotoFile" accept="image/*">
+  </div>
+</div>
+
+<!-- Camera scanner -->
+<div class="scanner" id="scanner">
+  <video id="scanVideo" playsinline muted></video>
+  <div class="scan-ui"><div class="scan-frame"></div></div>
+  <div class="scan-hint" id="scanStatus">Point your camera at the barcode…</div>
+  <button class="close-x" id="scanCancel" aria-label="Cancel">✕</button>
+  <button class="btn btn-ghost scan-photo-btn" id="scanUsePhoto">Use a photo instead</button>
+</div>
+
+<!-- Fullscreen barcode -->
+<div class="show" id="showView">
+  <button class="close-x" id="showClose" aria-label="Close">✕</button>
+  <div class="sh-name" id="sh-name"></div>
+  <div class="sh-cat" id="sh-cat"></div>
+  <div class="bc" id="sh-bc"></div>
+  <div class="sh-hint">Screen stays on &amp; bright — hold up to the scanner</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bwip-js@3.4.3/dist/bwip-js-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  var KEY="wallet.cards.v1";
+  var COLORS=["#4f8cff","#7c5cff","#5b6cf0","#f43f5e","#10b981","#f59e0b","#ff7ac2","#06b6d4","#8b5cf6","#64748b"];
+  var TYPE_LABELS={code128:"Code 128",qrcode:"QR Code",ean13:"EAN-13",ean8:"EAN-8",upca:"UPC-A",
+    code39:"Code 39",pdf417:"PDF417",azteccode:"Aztec",datamatrix:"Data Matrix",code93:"Code 93",
+    upce:"UPC-E",interleaved2of5:"ITF",rationalizedCodabar:"Codabar"};
+  var cards=load();
+  var activeCat="All";
+  var editingId=null;
+  var currentId=null;
+  var draftColor=COLORS[0];
+  var draftLogo=null;
+  var wakeLock=null;
+  var audioCtx=null;
+
+  var $=function(id){return document.getElementById(id);};
+
+  function load(){ try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];} }
+  function persist(){ localStorage.setItem(KEY, JSON.stringify(cards)); }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function getCard(id){ for(var i=0;i<cards.length;i++){ if(cards[i].id===id) return cards[i]; } return null; }
+  function is2D(t){ return t==="qrcode"||t==="azteccode"||t==="pdf417"||t==="datamatrix"; }
+
+  // ---------- Theme ----------
+  var TKEY="beep.theme";
+  var mq=window.matchMedia("(prefers-color-scheme: dark)");
+  function themePref(){ return localStorage.getItem(TKEY)||"auto"; }
+  function applyTheme(){
+    var t=themePref(), root=document.documentElement;
+    if(t==="auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme",t);
+    var dark = t==="dark" || (t==="auto" && mq.matches);
+    var m=document.querySelector('meta[name=theme-color]'); if(m) m.setAttribute("content", dark?"#0E1220":"#F4F5FB");
+    var lbl=t.charAt(0).toUpperCase()+t.slice(1);
+    if($("themeLbl")) $("themeLbl").textContent="Appearance: "+lbl;
+  }
+  function cycleTheme(){ var o=["auto","light","dark"]; localStorage.setItem(TKEY, o[(o.indexOf(themePref())+1)%3]); applyTheme(); }
+  mq.addEventListener?mq.addEventListener("change",applyTheme):mq.addListener(applyTheme);
+
+  // ---------- Beep! (Web Audio, no files) ----------
+  var SKEY="beep.sound";
+  function soundOn(){ return localStorage.getItem(SKEY)!=="off"; }
+  function setSound(on){ localStorage.setItem(SKEY, on?"on":"off"); }
+  function initAudio(){ if(audioCtx) return; try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  function tone(freq,start,dur){
+    var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type="square"; o.frequency.value=freq;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.0001,start);
+    g.gain.exponentialRampToValueAtTime(0.32,start+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
+    o.start(start); o.stop(start+dur+0.02);
+  }
+  function playBeep(success){
+    if(!soundOn()) return;
+    initAudio(); if(!audioCtx) return;
+    if(audioCtx.state==="suspended"){ try{audioCtx.resume();}catch(e){} }
+    var t=audioCtx.currentTime;
+    if(success){ tone(1568,t,0.08); tone(2093,t+0.09,0.12); }
+    else { tone(2000,t,0.09); }
+  }
+
+  // ---------- Barcode rendering ----------
+  function renderBarcode(container, type, value, scale){
+    container.innerHTML="";
+    if(!value){ return; }
+    var canvas=document.createElement("canvas");
+    var opts={ bcid:type, text:String(value), scale:scale||3,
+      paddingwidth:2, paddingheight:2, backgroundcolor:"FFFFFF" };
+    if(!is2D(type)){ opts.height=12; opts.includetext=true; opts.textxalign="center"; opts.textsize=9; }
+    try{
+      if(typeof bwipjs==="undefined") throw new Error("offline");
+      bwipjs.toCanvas(canvas,opts);
+      container.appendChild(canvas);
+      return true;
+    }catch(e){
+      var d=document.createElement("div");
+      d.className="preview-err";
+      d.textContent = (typeof bwipjs==="undefined")
+        ? "Barcode library not loaded (offline). Number: "+value
+        : "Can't render "+type+" for \""+value+"\". Check the code length/format.";
+      container.appendChild(d);
+      return false;
+    }
+  }
+
+  // ---------- Expiry helpers ----------
+  function daysLeft(card){
+    if(!card.exp) return null;
+    var today=new Date(); today.setHours(0,0,0,0);
+    var e=new Date(card.exp+"T00:00:00");
+    return Math.round((e-today)/86400000);
+  }
+  function expClass(d){ if(d===null) return ""; if(d<0) return "dead"; if(d<=7) return "soon"; if(d<=30) return "warn"; return ""; }
+  function expLabel(d){
+    if(d===null) return "";
+    if(d<0) return "Expired"; if(d===0) return "Expires today"; if(d===1) return "1 day left";
+    if(d<=60) return d+" days left"; return "";
+  }
+  function fmtDate(s){ try{ return new Date(s+"T00:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return s; } }
+
+  // ---------- Colour helpers ----------
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];}); }
+  function shade(hex,amt){
+    var c=hex.replace("#",""); if(c.length===3)c=c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    var n=parseInt(c,16),r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
+    r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
+    return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+  }
+  function cardBg(c){ return "linear-gradient(145deg,"+shade(c.color,20)+" 0%,"+c.color+" 48%,"+shade(c.color,-32)+" 100%)"; }
+  function idealText(hex){
+    var c=hex.replace("#",""); if(c.length===3)c=c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    var n=parseInt(c,16),r=n>>16,g=(n>>8)&255,b=n&255;
+    return ((0.299*r+0.587*g+0.114*b)/255)>0.64 ? "#221f3a" : "#ffffff";
+  }
+  function initials(name){
+    return (name||"?").trim().split(/\s+/).map(function(w){return w[0];}).slice(0,2).join("").toUpperCase();
+  }
+
+  // ---------- List rendering (wallet stack) ----------
+  function categories(){
+    var set={}; cards.forEach(function(c){ set[c.cat||"Other"]=1; });
+    return ["All"].concat(Object.keys(set));
+  }
+  function renderChips(){
+    var wrap=$("chips"); wrap.innerHTML="";
+    categories().forEach(function(cat){
+      var b=document.createElement("button");
+      b.className="chip"+(cat===activeCat?" active":"");
+      b.textContent=cat;
+      b.onclick=function(){ activeCat=cat; renderChips(); renderList(); };
+      wrap.appendChild(b);
+    });
+  }
+  function renderReminders(){
+    var box=$("reminders"); box.innerHTML="";
+    var due=cards.filter(function(c){ var d=daysLeft(c); return d!==null && c.remind>0 && d<=c.remind; })
+                 .sort(function(a,b){return daysLeft(a)-daysLeft(b);});
+    if(!due.length) return;
+    var names=due.slice(0,3).map(function(c){ var d=daysLeft(c); return "<b>"+esc(c.name)+"</b> ("+(d<0?"expired":d+"d")+")"; }).join(", ");
+    var extra=due.length>3?" +"+(due.length-3)+" more":"";
+    var div=document.createElement("div"); div.className="reminder";
+    div.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span>Renewal soon: '+names+extra+'</span>';
+    box.appendChild(div);
+  }
+  function cardHeadHTML(c,d,withTags){
+    var ink=idealText(c.color);
+    var logoBg = ink==="#ffffff" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.12)";
+    var logo = c.logo ? '<img src="'+c.logo+'" alt="">' : esc(initials(c.name));
+    var shadow = ink==="#ffffff" ? "0 1px 4px rgba(0,0,0,.28)" : "none";
+    var tags="";
+    if(withTags){
+      var expTag = (d!==null && (d<0||d<=60)) ? '<span class="tag '+expClass(d)+'">'+(d<0?"Expired":expLabel(d))+'</span>' : '';
+      tags='<div class="wc-tags"><span class="tag">'+esc(c.cat||"Other")+'</span>'+expTag+'</div>';
+    }
+    return '<div class="wc-head">'+
+        '<div class="wc-logo" style="background:'+logoBg+'">'+logo+'</div>'+
+        '<div class="wc-name" style="text-shadow:'+shadow+'">'+esc(c.name)+'</div></div>'+tags;
+  }
+  function renderList(){
+    var q=$("search").value.trim().toLowerCase();
+    var grid=$("grid"); grid.innerHTML="";
+    var list=cards.filter(function(c){
+      if(activeCat!=="All" && (c.cat||"Other")!==activeCat) return false;
+      if(q && !(c.name.toLowerCase().indexOf(q)>-1 || (c.value||"").toLowerCase().indexOf(q)>-1)) return false;
+      return true;
+    });
+    $("empty").style.display = cards.length? "none":"block";
+    if(cards.length && !list.length){ grid.innerHTML='<div class="nomatch">No matches.</div>'; return; }
+    list.forEach(function(c){
+      var d=daysLeft(c);
+      var el=document.createElement("button");
+      el.className="wcard";
+      el.style.background=cardBg(c);
+      el.style.color=idealText(c.color);
+      el.innerHTML=cardHeadHTML(c,d,false);
+      el.onclick=function(){ openDetail(c); };
+      grid.appendChild(el);
+    });
+  }
+
+  // ---------- Detail page ----------
+  function openDetail(c){
+    currentId=c.id;
+    var d=daysLeft(c), ink=idealText(c.color);
+    var card=$("dtCard");
+    card.style.background=cardBg(c); card.style.color=ink;
+    card.innerHTML=cardHeadHTML(c,d,true);
+    renderBarcode($("dt-bc"), c.type, c.value, is2D(c.type)?4:3);
+    $("dt-cat").textContent = c.cat||"Other";
+    $("dt-type").textContent = TYPE_LABELS[c.type]||c.type;
+    $("dt-exp").innerHTML = c.exp ? (fmtDate(c.exp)+(d!==null?' · <span style="color:var(--'+(d<0?"danger":d<=30?"warn":"ok")+')">'+(d<0?"Expired":expLabel(d))+'</span>':'')) : "—";
+    $("detail").classList.add("open"); $("detail").setAttribute("aria-hidden","false");
+    playBeep(false);
+    requestWake();
+  }
+  function closeDetail(){ $("detail").classList.remove("open"); $("detail").setAttribute("aria-hidden","true"); if(!$("showView").classList.contains("open")) releaseWake(); }
+
+  // ---------- Fullscreen show ----------
+  function openFull(c){
+    $("sh-name").textContent=c.name;
+    $("sh-cat").textContent=c.cat||"";
+    renderBarcode($("sh-bc"), c.type, c.value, (c.type==="qrcode"?6:4));
+    $("showView").classList.add("open");
+    requestWake();
+  }
+  function closeShow(){ $("showView").classList.remove("open"); if(!$("detail").classList.contains("open")) releaseWake(); }
+
+  async function requestWake(){ try{ if("wakeLock" in navigator){ wakeLock=await navigator.wakeLock.request("screen"); } }catch(e){} }
+  function releaseWake(){ try{ if(wakeLock){ wakeLock.release(); wakeLock=null; } }catch(e){} }
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="visible" && ($("showView").classList.contains("open")||$("detail").classList.contains("open"))) requestWake();
+  });
+
+  // ---------- Editor ----------
+  function openEditor(card, prefill){
+    editingId = card? card.id : null;
+    $("editTitle").textContent = card? "Edit card":"Add card";
+    $("f-name").value = card? card.name : "";
+    $("f-type").value = card? card.type : ((prefill&&prefill.type)||"code128");
+    $("f-cat").value  = card? (card.cat||"Loyalty") : "Loyalty";
+    $("f-value").value= card? card.value : ((prefill&&prefill.value)||"");
+    $("f-exp").value  = card? (card.exp||"") : "";
+    $("f-remind").value = card? String(card.remind||0) : "30";
+    draftColor = card? card.color : COLORS[0];
+    draftLogo = card? (card.logo||null) : null;
+    $("deleteBtn").style.display = card? "block":"none";
+    renderSwatches(); renderLogoPrev(); updatePreview();
+    openSheet("editOverlay");
+  }
+  function renderSwatches(){
+    var w=$("swatches"); w.innerHTML="";
+    COLORS.forEach(function(col){
+      var b=document.createElement("button");
+      b.className="sw"+(col===draftColor?" sel":""); b.style.background=col; b.setAttribute("aria-label","Colour");
+      b.onclick=function(){ draftColor=col; renderSwatches(); };
+      w.appendChild(b);
+    });
+  }
+  function renderLogoPrev(){
+    var p=$("logoPrev");
+    if(draftLogo){ p.innerHTML='<img src="'+draftLogo+'" alt="">'; }
+    else { p.textContent = initials($("f-name").value)||"?"; }
+  }
+  function updatePreview(){
+    renderBarcode($("preview"), $("f-type").value, $("f-value").value.trim(), 2.4);
+    if(!$("f-value").value.trim()){ $("preview").innerHTML='<span class="small" style="color:#999">Enter a code…</span>'; }
+  }
+  function saveCard(){
+    var name=$("f-name").value.trim(), value=$("f-value").value.trim();
+    if(!name){ alert("Give the card a name."); return; }
+    if(!value){ alert("Enter the card number / code."); return; }
+    var data={ id: editingId||uid(), name:name, type:$("f-type").value, cat:$("f-cat").value,
+      value:value, color:draftColor, logo:draftLogo, exp:$("f-exp").value||null, remind:parseInt($("f-remind").value,10)||0 };
+    if(editingId){ cards = cards.map(function(c){ return c.id===editingId? data : c; }); }
+    else { cards.unshift(data); }
+    persist(); closeSheet("editOverlay"); refresh();
+    if(editingId && $("detail").classList.contains("open")) openDetail(data);
+  }
+  function deleteById(id){
+    if(!confirm("Delete this card?")) return false;
+    cards = cards.filter(function(c){ return c.id!==id; });
+    persist(); refresh(); return true;
+  }
+
+  // ---------- Logo image (downscaled) ----------
+  function handleLogoFile(file){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var img=new Image();
+      img.onload=function(){
+        var max=128, s=Math.min(max/img.width, max/img.height, 1);
+        var w=Math.round(img.width*s), h=Math.round(img.height*s);
+        var cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+        cv.getContext("2d").drawImage(img,0,0,w,h);
+        draftLogo=cv.toDataURL("image/png"); renderLogoPrev();
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- Backup ----------
+  function exportBackup(){
+    var blob=new Blob([JSON.stringify(cards,null,2)],{type:"application/json"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url; a.download="beep-backup-"+new Date().toISOString().slice(0,10)+".json";
+    a.click(); setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  }
+  function importBackup(file){
+    var r=new FileReader();
+    r.onload=function(e){
+      try{
+        var data=JSON.parse(e.target.result);
+        if(!Array.isArray(data)) throw 0;
+        if(!confirm("Import "+data.length+" cards? This replaces your current list.")) return;
+        cards=data; persist(); closeSheet("menuOverlay"); refresh();
+      }catch(err){ alert("That doesn't look like a valid backup file."); }
+    };
+    r.readAsText(file);
+  }
+
+  // ---------- Sheets ----------
+  function openSheet(id){ $(id).classList.add("open"); }
+  function closeSheet(id){ $(id).classList.remove("open"); }
+  function refresh(){ renderChips(); renderReminders(); renderList(); }
+
+  // ---------- Scanning (camera + photo) ----------
+  var codeReader=null, scanControls=null;
+  function getReader(){
+    if(codeReader) return codeReader;
+    var hints=new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    codeReader=new ZXing.BrowserMultiFormatReader(hints); return codeReader;
+  }
+  function zxingToBcid(fmt){
+    var B=ZXing.BarcodeFormat, m={};
+    m[B.QR_CODE]="qrcode"; m[B.AZTEC]="azteccode"; m[B.PDF_417]="pdf417";
+    m[B.DATA_MATRIX]="datamatrix"; m[B.CODE_128]="code128"; m[B.CODE_39]="code39";
+    m[B.CODE_93]="code93"; m[B.EAN_13]="ean13"; m[B.EAN_8]="ean8";
+    m[B.UPC_A]="upca"; m[B.UPC_E]="upce"; m[B.ITF]="interleaved2of5"; m[B.CODABAR]="rationalizedCodabar";
+    return m[fmt]||"code128";
+  }
+  function onDetected(value, bcid){
+    if(!value) return;
+    playBeep(true); stopScanner();
+    openEditor(null, {value:value, type:bcid});
+    setTimeout(function(){ try{$("f-name").focus();}catch(e){} }, 250);
+  }
+  function startScanner(){
+    if(typeof ZXing==="undefined"){ alert("Scanner couldn't load (no connection?). You can enter the card manually."); return; }
+    openSheet("scanner");
+    $("scanStatus").textContent="Point your camera at the barcode…";
+    getReader().decodeFromConstraints({ video:{ facingMode:{ ideal:"environment" } } }, $("scanVideo"),
+      function(result){ if(result) onDetected(result.getText(), zxingToBcid(result.getBarcodeFormat())); }
+    ).then(function(controls){ scanControls=controls; })
+     .catch(function(){ $("scanStatus").textContent="Can't access the camera. Allow camera access, or tap “Use a photo”."; });
+  }
+  function stopScanner(){
+    try{ if(scanControls && scanControls.stop) scanControls.stop(); }catch(e){}
+    try{ if(codeReader && codeReader.reset) codeReader.reset(); }catch(e){}
+    scanControls=null; closeSheet("scanner");
+  }
+  function decodePhoto(file){
+    if(typeof ZXing==="undefined"){ alert("Scanner couldn't load. Enter the card manually."); return; }
+    var url=URL.createObjectURL(file);
+    getReader().decodeFromImageUrl(url).then(function(result){
+      URL.revokeObjectURL(url); onDetected(result.getText(), zxingToBcid(result.getBarcodeFormat()));
+    }).catch(function(){
+      URL.revokeObjectURL(url);
+      alert("No barcode found in that photo. Try a clearer, straight-on shot in good light — or enter it manually.");
+    });
+  }
+
+  // ---------- Wire up ----------
+  $("addFab").onclick=function(){ openSheet("chooseOverlay"); };
+  $("optScan").onclick=function(){ closeSheet("chooseOverlay"); startScanner(); };
+  $("optPhoto").onclick=function(){ $("scanPhotoFile").click(); };
+  $("optManual").onclick=function(){ closeSheet("chooseOverlay"); openEditor(null); };
+  $("scanPhotoFile").onchange=function(e){ if(e.target.files[0]){ closeSheet("chooseOverlay"); decodePhoto(e.target.files[0]); } e.target.value=""; };
+  $("scanCancel").onclick=stopScanner;
+  $("scanUsePhoto").onclick=function(){ stopScanner(); $("scanPhotoFile").click(); };
+  $("menuBtn").onclick=function(){ openSheet("menuOverlay"); };
+  $("saveBtn").onclick=saveCard;
+  $("deleteBtn").onclick=function(){ if(editingId && deleteById(editingId)) closeSheet("editOverlay"); };
+  $("showClose").onclick=closeShow;
+  $("search").oninput=renderList;
+  $("f-type").onchange=updatePreview;
+  $("f-value").oninput=updatePreview;
+  $("f-name").oninput=function(){ if(!draftLogo) renderLogoPrev(); };
+  $("logoPick").onclick=function(){ $("logoFile").click(); };
+  $("logoFile").onchange=function(e){ if(e.target.files[0]) handleLogoFile(e.target.files[0]); };
+  $("logoClear").onclick=function(){ draftLogo=null; renderLogoPrev(); };
+
+  // detail wiring
+  $("dtBack").onclick=closeDetail;
+  $("dtEdit").onclick=function(){ var c=getCard(currentId); if(c) openEditor(c); };
+  $("dtShow").onclick=function(){ var c=getCard(currentId); if(c) openFull(c); };
+  $("bcPanel").onclick=function(){ var c=getCard(currentId); if(c) openFull(c); };
+  $("dtDelete").onclick=function(){ if(currentId && deleteById(currentId)) closeDetail(); };
+
+  // theme + sound
+  $("themeBtn").onclick=cycleTheme;
+  function updateSoundBtn(){ $("soundLbl").textContent="Beep sound: "+(soundOn()?"On":"Off"); }
+  $("soundBtn").onclick=function(){ setSound(!soundOn()); updateSoundBtn(); if(soundOn()) playBeep(true); };
+  updateSoundBtn(); applyTheme();
+
+  // Unlock audio on first user gesture (iOS requirement)
+  ["touchend","click"].forEach(function(ev){
+    document.addEventListener(ev, function unlock(){
+      initAudio(); if(audioCtx && audioCtx.state==="suspended"){ try{audioCtx.resume();}catch(e){} }
+      document.removeEventListener(ev, unlock);
+    }, {once:true, passive:true});
+  });
+
+  $("exportBtn").onclick=exportBackup;
+  $("importBtn").onclick=function(){ $("importFile").click(); };
+  $("importFile").onchange=function(e){ if(e.target.files[0]) importBackup(e.target.files[0]); };
+  $("aboutBtn").onclick=function(){
+    alert("Beep — your cards, tickets & memberships.\n\n• Tap a card to open it, then tap the barcode to enlarge & brighten.\n• Scan or photograph a card to add it — the type is detected automatically.\n• Screen stays awake & bright while showing a code, with a satisfying beep.\n• Everything is stored on this device only — export backups from this menu.\n\nAdd to Home Screen for the full app experience.");
+  };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-close]"),function(b){
+    b.onclick=function(){ closeSheet(b.getAttribute("data-close")); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".overlay"),function(ov){
+    ov.addEventListener("click",function(e){ if(e.target===ov) ov.classList.remove("open"); });
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>
