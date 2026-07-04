@@ -88,19 +88,22 @@
 
   /* ---------- Apple-Wallet-style stack ---------- */
   .wallet{position:relative;padding:2px 0 10px}
-  .wcard{position:relative;isolation:isolate;display:flex;align-items:center;gap:14px;width:100%;min-height:80px;
-    margin-top:-20px;border-radius:20px;padding:15px 18px;overflow:hidden;cursor:pointer;text-align:left;color:#fff;
-    box-shadow:0 -2px 8px rgba(20,20,55,.10), 0 9px 18px rgba(20,20,55,.18);transition:transform .16s ease;
+  /* Full-size cards (Apple-Wallet style): each is a whole card, overlapped so
+     only the top peeks. The frontmost (last) card shows in full. */
+  .wcard{position:relative;isolation:isolate;display:flex;flex-direction:column;gap:14px;width:100%;height:210px;
+    margin-top:-128px;border-radius:22px;padding:17px 18px;overflow:hidden;cursor:pointer;text-align:left;color:#fff;
+    box-shadow:0 -2px 8px rgba(20,20,55,.10), 0 12px 24px rgba(20,20,55,.22);transition:transform .16s ease;
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:pan-y}
   .wcard:first-child{margin-top:0}
-  .wallet .wcard:last-child{min-height:176px;align-items:flex-start;padding-top:16px}
-  .wcard:active{transform:scale(.985)}
-  /* Long-press drag-to-reorder: flatten the stack into an even list while dragging */
-  .wallet.reordering .wcard{margin-top:12px;min-height:80px;align-items:center;padding-top:15px;
-    transition:transform .18s cubic-bezier(.2,.7,.3,1),margin .18s ease}
+  .wcard:active{transform:scale(.99)}
+  /* Long-press drag-to-reorder: flatten the others into an even list for precise
+     dropping, while the picked-up card lifts at full size. */
+  .wallet.reordering .wcard{height:82px;min-height:0;margin-top:12px;
+    transition:transform .18s cubic-bezier(.2,.7,.3,1),margin .18s ease,height .18s ease}
   .wallet.reordering .wcard:first-child{margin-top:0}
-  .wcard.rz-drag{transition:none!important;z-index:60;box-shadow:0 18px 40px rgba(20,20,55,.42);opacity:.98}
-  .wcard-ph{width:100%;min-height:80px;margin-top:12px;border-radius:20px;
+  .wcard.rz-drag{height:210px!important;transition:none!important;z-index:60;
+    box-shadow:0 22px 46px rgba(20,20,55,.5);opacity:.99}
+  .wcard-ph{width:100%;height:82px;margin-top:12px;border-radius:22px;
     border:2px dashed var(--line-strong);background:rgba(125,140,190,.08)}
   .wallet.reordering .wcard-ph:first-child{margin-top:0}
   .wcard::after{content:"";position:absolute;inset:0;border-radius:20px;
@@ -186,7 +189,9 @@
     border:1px solid var(--line);font-weight:700;font-size:15px;color:var(--text);box-shadow:0 3px 8px var(--shadow-soft)}
   .pill-btn svg{width:18px;height:18px}
   .dt-scroll{flex:1;overflow:auto;padding:6px 18px calc(var(--safe-bottom) + 30px)}
-  .dt-card{display:block;min-height:190px;height:auto;cursor:default;margin-top:0}
+  /* Detail hero matches a list card's size so the open/close morph is a pure
+     move (no shrink-to-strip). */
+  .dt-card{height:210px;min-height:0;cursor:default;margin-top:0}
   .dt-card:active{transform:none}
   .bc-panel{background:#fff;border-radius:20px;padding:22px 16px 16px;margin-top:20px;text-align:center;
     box-shadow:0 8px 22px var(--shadow-soft);cursor:pointer}
@@ -428,7 +433,7 @@
 <script>
 (function(){
   "use strict";
-  var BUILD="2026-07-04.4";
+  var BUILD="2026-07-04.5";
   var KEY="wallet.cards.v1";
   var COLORS=["#4f8cff","#7c5cff","#5b6cf0","#f43f5e","#10b981","#f59e0b","#ff7ac2","#06b6d4","#8b5cf6","#64748b"];
   var TYPE_LABELS={code128:"Code 128",qrcode:"QR Code",ean13:"EAN-13",ean8:"EAN-8",upca:"UPC-A",
@@ -647,14 +652,15 @@
     try{ el.setPointerCapture(pointerId); }catch(e){}
     if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(e){} }
     var grid=$("grid");
-    grid.classList.add("reordering");            // flatten the stack for clean geometry
-    var r=el.getBoundingClientRect();            // measured after flatten
+    var r=el.getBoundingClientRect();            // full card at its stack position
     rz.offsetY = clientY - r.top;
-    var ph=document.createElement("div"); ph.className="wcard-ph"; rz.ph=ph;
-    el.parentNode.insertBefore(ph, el);          // placeholder holds the slot
+    // Lift the picked-up card at full size, exactly where it sat…
     el.classList.add("rz-drag");
     el.style.position="fixed"; el.style.margin="0";
     el.style.width=r.width+"px"; el.style.left=r.left+"px"; el.style.top=r.top+"px";
+    var ph=document.createElement("div"); ph.className="wcard-ph"; rz.ph=ph;
+    el.parentNode.insertBefore(ph, el);          // placeholder holds its slot
+    grid.classList.add("reordering");            // …then flatten the rest for precise dropping
     document.documentElement.style.overflow="hidden"; document.body.style.overflow="hidden";
     window.addEventListener("pointermove", reorderMove, {passive:false});
     window.addEventListener("pointerup", reorderEnd);
