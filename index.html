@@ -9,6 +9,10 @@
 <meta name="apple-mobile-web-app-title" content="Beep">
 <meta name="theme-color" content="#F4F5FB">
 <title>Beep</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -240,14 +244,22 @@
 <header>
   <div class="titlebar">
     <div class="brand">
-      <svg class="brand-ic" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <rect width="48" height="48" rx="13" fill="url(#bg)"/>
-        <g fill="#fff"><rect x="12" y="15" width="2.4" height="18" rx="1"/><rect x="16" y="15" width="1.4" height="18" rx=".7"/>
-        <rect x="19" y="15" width="3" height="18" rx="1"/><rect x="24" y="15" width="1.6" height="18" rx=".8"/></g>
-        <g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
-        <path d="M31 20a6 6 0 0 1 0 8"/><path d="M35 17a11 11 0 0 1 0 14"/></g>
-        <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop stop-color="#4F8CFF"/><stop offset="1" stop-color="#7C5CFF"/></linearGradient></defs>
+      <svg class="brand-ic" viewBox="0 0 96 96" aria-hidden="true">
+        <defs>
+          <linearGradient id="ibars" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4F8CFF"/><stop offset="1" stop-color="#8155FF"/></linearGradient>
+          <linearGradient id="ibeam" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#4F8CFF" stop-opacity="0"/><stop offset=".16" stop-color="#5EA0FF"/><stop offset=".5" stop-color="#B9C4FF"/><stop offset=".84" stop-color="#8155FF"/><stop offset="1" stop-color="#8155FF" stop-opacity="0"/>
+          </linearGradient>
+          <filter id="iglow" x="-40%" y="-400%" width="180%" height="900%"><feGaussianBlur stdDeviation="2.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <rect width="96" height="96" rx="23" fill="#0A0A0F"/>
+        <g fill="none" stroke="#fff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M26 39V27H38"/><path d="M70 39V27H58"/><path d="M26 57V69H38"/><path d="M70 57V69H58"/>
+        </g>
+        <g fill="url(#ibars)">
+          <rect x="33" y="31" width="2.8" height="34" rx="1.4"/><rect x="37.6" y="31" width="2.8" height="34" rx="1.4"/><rect x="42.2" y="31" width="2.8" height="34" rx="1.4"/><rect x="46.8" y="31" width="2.8" height="34" rx="1.4"/><rect x="51.4" y="31" width="2.8" height="34" rx="1.4"/><rect x="56" y="31" width="2.8" height="34" rx="1.4"/><rect x="60.6" y="31" width="2.8" height="34" rx="1.4"/><rect x="65.2" y="31" width="2.8" height="34" rx="1.4"/>
+        </g>
+        <g filter="url(#iglow)"><rect x="18" y="46.6" width="60" height="2.6" rx="1.3" fill="url(#ibeam)"/></g>
       </svg>Beep
     </div>
     <button class="icon-btn" id="menuBtn" title="Menu" aria-label="Menu">
@@ -433,7 +445,7 @@
 <script>
 (function(){
   "use strict";
-  var BUILD="2026-07-04.6";
+  var BUILD="2026-07-04.7";
   var KEY="wallet.cards.v1";
   var COLORS=["#4f8cff","#7c5cff","#5b6cf0","#f43f5e","#10b981","#f59e0b","#ff7ac2","#06b6d4","#8b5cf6","#64748b"];
   var TYPE_LABELS={code128:"Code 128",qrcode:"QR Code",ean13:"EAN-13",ean8:"EAN-8",upca:"UPC-A",

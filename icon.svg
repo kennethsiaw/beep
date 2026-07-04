@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <defs>
+    <linearGradient id="ibars" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4F8CFF"/><stop offset="1" stop-color="#8155FF"/></linearGradient>
+    <linearGradient id="ibeam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4F8CFF" stop-opacity="0"/><stop offset=".16" stop-color="#5EA0FF"/><stop offset=".5" stop-color="#B9C4FF"/><stop offset=".84" stop-color="#8155FF"/><stop offset="1" stop-color="#8155FF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="iglow" x="-40%" y="-400%" width="180%" height="900%"><feGaussianBlur stdDeviation="2.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="96" height="96" rx="23" fill="#0A0A0F"/>
+  <g fill="none" stroke="#fff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26 39V27H38"/><path d="M70 39V27H58"/><path d="M26 57V69H38"/><path d="M70 57V69H58"/>
+  </g>
+  <g fill="url(#ibars)">
+    <rect x="33" y="31" width="2.8" height="34" rx="1.4"/><rect x="37.6" y="31" width="2.8" height="34" rx="1.4"/><rect x="42.2" y="31" width="2.8" height="34" rx="1.4"/><rect x="46.8" y="31" width="2.8" height="34" rx="1.4"/><rect x="51.4" y="31" width="2.8" height="34" rx="1.4"/><rect x="56" y="31" width="2.8" height="34" rx="1.4"/><rect x="60.6" y="31" width="2.8" height="34" rx="1.4"/><rect x="65.2" y="31" width="2.8" height="34" rx="1.4"/>
+  </g>
+  <g filter="url(#iglow)"><rect x="18" y="46.6" width="60" height="2.6" rx="1.3" fill="url(#ibeam)"/></g>
+</svg>
