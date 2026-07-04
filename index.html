@@ -772,11 +772,21 @@
   function refresh(){ renderChips(); renderReminders(); renderList(); }
 
   // ---------- Scanning (camera + photo) ----------
-  var codeReader=null, scanControls=null;
+  // We do NOT use ZXing's decodeFromConstraints/continuous-video loop: in
+  // @zxing/library 0.21.x that path flips the image to inverted colours on every
+  // other frame (its internal auto-invert), which makes live scanning miss the
+  // code over and over. Instead we grab frames ourselves and decode each one
+  // through the rock-solid image path — the same decoder the "photo" flow uses.
+  var codeReader=null, frameReader=null;
   function getReader(){
     if(codeReader) return codeReader;
     var hints=new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
     codeReader=new ZXing.BrowserMultiFormatReader(hints); return codeReader;
+  }
+  function getFrameReader(){
+    if(frameReader) return frameReader;
+    var hints=new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    frameReader=new ZXing.BrowserMultiFormatReader(hints); return frameReader;
   }
   function zxingToBcid(fmt){
     var B=ZXing.BarcodeFormat, m={};
@@ -786,26 +796,92 @@
     m[B.UPC_A]="upca"; m[B.UPC_E]="upce"; m[B.ITF]="interleaved2of5"; m[B.CODABAR]="rationalizedCodabar";
     return m[fmt]||"code128";
   }
+  function nativeFmtToBcid(f){
+    var m={ qr_code:"qrcode", aztec:"azteccode", pdf417:"pdf417", data_matrix:"datamatrix",
+      code_128:"code128", code_39:"code39", code_93:"code93", ean_13:"ean13", ean_8:"ean8",
+      upc_a:"upca", upc_e:"upce", itf:"interleaved2of5", codabar:"rationalizedCodabar" };
+    return m[f]||"code128";
+  }
   function onDetected(value, bcid){
     if(!value) return;
     playBeep(true); stopScanner();
     openEditor(null, {value:value, type:bcid});
     setTimeout(function(){ try{$("f-name").focus();}catch(e){} }, 250);
   }
+
+  var camStream=null, scanLoopId=null, scanStop=false, scanBusy=false, scanCanvas=null, nativeDetector=null;
   function startScanner(){
-    if(typeof ZXing==="undefined"){ alert("Scanner couldn't load (no connection?). You can enter the card manually."); return; }
+    var canZXing = (typeof ZXing!=="undefined");
+    var canNative = ("BarcodeDetector" in window);
+    if(!canZXing && !canNative){ alert("Scanner couldn't load (no connection?). You can enter the card manually."); return; }
     openSheet("scanner");
     wakeAudio();
     $("scanStatus").textContent="Point your camera at the barcode…";
-    getReader().decodeFromConstraints({ video:{ facingMode:{ ideal:"environment" }, width:{ ideal:1920 }, height:{ ideal:1080 } } }, $("scanVideo"),
-      function(result){ if(result) onDetected(result.getText(), zxingToBcid(result.getBarcodeFormat())); }
-    ).then(function(controls){ scanControls=controls; })
-     .catch(function(){ $("scanStatus").textContent="Can't access the camera. Allow camera access, or tap “Use a photo”."; });
+    var v=$("scanVideo");
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" }, width:{ ideal:1280 }, height:{ ideal:720 } } })
+      .then(function(stream){
+        camStream=stream; v.srcObject=stream;
+        v.setAttribute("playsinline",""); v.muted=true;
+        return v.play().catch(function(){});
+      })
+      .then(function(){ startDecodeLoop(v); })
+      .catch(function(){ $("scanStatus").textContent="Can't access the camera. Allow camera access, or tap “Use a photo”."; });
+  }
+  function startDecodeLoop(v){
+    scanStop=false; scanBusy=false;
+    // Prefer the browser's native detector where available (fast, low-power,
+    // e.g. iOS 17+ Safari & Chrome); fall back to ZXing's image decoder.
+    nativeDetector=null;
+    try{ if("BarcodeDetector" in window){ nativeDetector=new window.BarcodeDetector(); } }catch(e){ nativeDetector=null; }
+    var tick=function(){
+      if(scanStop) return;
+      if(scanBusy || !v.videoWidth){ scanLoopId=setTimeout(tick, 120); return; }
+      scanBusy=true;
+      decodeFrame(v).then(function(hit){
+        scanBusy=false;
+        if(hit || scanStop) return;   // a hit already stopped the scanner
+        scanLoopId=setTimeout(tick, 120);
+      });
+    };
+    tick();
+  }
+  function decodeFrame(v){
+    if(nativeDetector){
+      return nativeDetector.detect(v).then(function(codes){
+        if(codes && codes.length){ onDetected(codes[0].rawValue, nativeFmtToBcid(codes[0].format)); return true; }
+        return false;
+      }).catch(function(){ nativeDetector=null; return false; }); // detector unusable here → fall back to ZXing
+    }
+    return new Promise(function(resolve){
+      if(typeof ZXing==="undefined"){ resolve(false); return; }
+      try{
+        if(!scanCanvas) scanCanvas=document.createElement("canvas");
+        var cv=scanCanvas, vw=v.videoWidth, vh=v.videoHeight;
+        var sc=Math.min(1, 1280/Math.max(vw,vh));   // cap size to keep decode snappy
+        cv.width=Math.round(vw*sc); cv.height=Math.round(vh*sc);
+        cv.getContext("2d").drawImage(v,0,0,cv.width,cv.height);
+        var im=new Image();
+        im.onload=function(){
+          try{
+            // Decode the loaded frame through ZXing's synchronous image path
+            // (returns a Result or throws NotFound). This avoids the buggy
+            // auto-invert used on <video> sources.
+            var res=getFrameReader().decode(im);
+            onDetected(res.getText(), zxingToBcid(res.getBarcodeFormat())); resolve(true);
+          }catch(e){ resolve(false); }
+        };
+        im.onerror=function(){ resolve(false); };
+        im.src=cv.toDataURL("image/png");
+      }catch(e){ resolve(false); }
+    });
   }
   function stopScanner(){
-    try{ if(scanControls && scanControls.stop) scanControls.stop(); }catch(e){}
-    try{ if(codeReader && codeReader.reset) codeReader.reset(); }catch(e){}
-    scanControls=null; closeSheet("scanner");
+    scanStop=true; scanBusy=false;
+    if(scanLoopId){ clearTimeout(scanLoopId); scanLoopId=null; }
+    try{ if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); } }catch(e){}
+    camStream=null; nativeDetector=null;
+    try{ var v=$("scanVideo"); if(v){ v.pause(); v.srcObject=null; } }catch(e){}
+    closeSheet("scanner");
   }
   function decodePhoto(file){
     if(typeof ZXing==="undefined"){ alert("Scanner couldn't load. Enter the card manually."); return; }
