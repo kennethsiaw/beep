@@ -419,6 +419,7 @@
 <script>
 (function(){
   "use strict";
+  var BUILD="2026-07-04.3";
   var KEY="wallet.cards.v1";
   var COLORS=["#4f8cff","#7c5cff","#5b6cf0","#f43f5e","#10b981","#f59e0b","#ff7ac2","#06b6d4","#8b5cf6","#64748b"];
   var TYPE_LABELS={code128:"Code 128",qrcode:"QR Code",ean13:"EAN-13",ean8:"EAN-8",upca:"UPC-A",
@@ -803,51 +804,67 @@
     return m[f]||"code128";
   }
   function onDetected(value, bcid){
-    if(!value) return;
+    if(!value || scanStop) return;   // one-shot: ignore any late/duplicate detection
     playBeep(true); stopScanner();
     openEditor(null, {value:value, type:bcid});
     setTimeout(function(){ try{$("f-name").focus();}catch(e){} }, 250);
   }
 
-  var camStream=null, scanLoopId=null, scanStop=false, scanBusy=false, scanCanvas=null, nativeDetector=null;
+  // scanSession invalidates in-flight decode callbacks once the scanner is
+  // closed/reopened, so a leftover frame from a previous scan can't "phantom
+  // detect" the moment you open the camera again.
+  var camStream=null, scanLoopId=null, scanStop=true, scanBusy=false, scanCanvas=null, nativeDetector=null, scanSession=0, scanReadyAt=0;
   function startScanner(){
     var canZXing = (typeof ZXing!=="undefined");
     var canNative = ("BarcodeDetector" in window);
     if(!canZXing && !canNative){ alert("Scanner couldn't load (no connection?). You can enter the card manually."); return; }
+    var session = ++scanSession;
+    scanStop=false; scanBusy=false;
     openSheet("scanner");
     wakeAudio();
     $("scanStatus").textContent="Point your camera at the barcode…";
     var v=$("scanVideo");
     navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" }, width:{ ideal:1280 }, height:{ ideal:720 } } })
       .then(function(stream){
+        if(session!==scanSession){ try{ stream.getTracks().forEach(function(t){t.stop();}); }catch(e){} return; }
         camStream=stream; v.srcObject=stream;
         v.setAttribute("playsinline",""); v.muted=true;
+        // best-effort continuous autofocus (helps codes shown on a screen)
+        try{ var tr=stream.getVideoTracks()[0];
+          if(tr && tr.applyConstraints){ tr.applyConstraints({ advanced:[{ focusMode:"continuous" }] }).catch(function(){}); }
+        }catch(e){}
         return v.play().catch(function(){});
       })
-      .then(function(){ startDecodeLoop(v); })
-      .catch(function(){ $("scanStatus").textContent="Can't access the camera. Allow camera access, or tap “Use a photo”."; });
+      .then(function(){
+        if(session!==scanSession) return;
+        // Warm-up: ignore the first ~500ms so a stale last-frame can't be decoded
+        // before the fresh camera view is actually live.
+        scanReadyAt = Date.now()+500;
+        startDecodeLoop(v, session);
+      })
+      .catch(function(){ if(session===scanSession) $("scanStatus").textContent="Can't access the camera. Allow camera access, or tap “Use a photo”."; });
   }
-  function startDecodeLoop(v){
-    scanStop=false; scanBusy=false;
+  function startDecodeLoop(v, session){
     // Prefer the browser's native detector where available (fast, low-power,
     // e.g. iOS 17+ Safari & Chrome); fall back to ZXing's image decoder.
     nativeDetector=null;
     try{ if("BarcodeDetector" in window){ nativeDetector=new window.BarcodeDetector(); } }catch(e){ nativeDetector=null; }
     var tick=function(){
-      if(scanStop) return;
-      if(scanBusy || !v.videoWidth){ scanLoopId=setTimeout(tick, 120); return; }
+      if(scanStop || session!==scanSession) return;
+      if(scanBusy || !v.videoWidth || Date.now()<scanReadyAt){ scanLoopId=setTimeout(tick, 100); return; }
       scanBusy=true;
-      decodeFrame(v).then(function(hit){
+      decodeFrame(v, session).then(function(hit){
         scanBusy=false;
-        if(hit || scanStop) return;   // a hit already stopped the scanner
-        scanLoopId=setTimeout(tick, 120);
+        if(hit || scanStop || session!==scanSession) return;   // a hit already stopped the scanner
+        scanLoopId=setTimeout(tick, 100);
       });
     };
     tick();
   }
-  function decodeFrame(v){
+  function decodeFrame(v, session){
     if(nativeDetector){
       return nativeDetector.detect(v).then(function(codes){
+        if(session!==scanSession) return false;
         if(codes && codes.length){ onDetected(codes[0].rawValue, nativeFmtToBcid(codes[0].format)); return true; }
         return false;
       }).catch(function(){ nativeDetector=null; return false; }); // detector unusable here → fall back to ZXing
@@ -862,6 +879,7 @@
         cv.getContext("2d").drawImage(v,0,0,cv.width,cv.height);
         var im=new Image();
         im.onload=function(){
+          if(session!==scanSession){ resolve(false); return; }
           try{
             // Decode the loaded frame through ZXing's synchronous image path
             // (returns a Result or throws NotFound). This avoids the buggy
@@ -876,11 +894,12 @@
     });
   }
   function stopScanner(){
-    scanStop=true; scanBusy=false;
+    scanStop=true; scanBusy=false; scanSession++;   // invalidate any in-flight decode
     if(scanLoopId){ clearTimeout(scanLoopId); scanLoopId=null; }
     try{ if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); } }catch(e){}
     camStream=null; nativeDetector=null;
-    try{ var v=$("scanVideo"); if(v){ v.pause(); v.srcObject=null; } }catch(e){}
+    // Fully reset the <video> so it doesn't keep painting the last frame.
+    try{ var v=$("scanVideo"); if(v){ v.pause(); v.srcObject=null; try{ v.load(); }catch(e){} } }catch(e){}
     closeSheet("scanner");
   }
   function decodePhoto(file){
@@ -939,7 +958,7 @@
   $("importBtn").onclick=function(){ $("importFile").click(); };
   $("importFile").onchange=function(e){ if(e.target.files[0]) importBackup(e.target.files[0]); };
   $("aboutBtn").onclick=function(){
-    alert("Beep — your cards, tickets & memberships.\n\n• Tap a card to open it, then tap the barcode to enlarge & brighten.\n• Scan or photograph a card to add it — the type is detected automatically.\n• Screen stays awake & bright while showing a code, with a satisfying beep.\n• Everything is stored on this device only — export backups from this menu.\n\nAdd to Home Screen for the full app experience.");
+    alert("Beep — your cards, tickets & memberships.\n\n• Tap a card to open it, then tap the barcode to enlarge & brighten.\n• Scan or photograph a card to add it — the type is detected automatically.\n• Screen stays awake & bright while showing a code, with a satisfying beep.\n• Everything is stored on this device only — export backups from this menu.\n\nAdd to Home Screen for the full app experience.\n\nBuild "+BUILD);
   };
   Array.prototype.forEach.call(document.querySelectorAll("[data-close]"),function(b){
     b.onclick=function(){ closeSheet(b.getAttribute("data-close")); };
